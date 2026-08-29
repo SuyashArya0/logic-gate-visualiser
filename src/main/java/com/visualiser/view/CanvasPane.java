@@ -60,6 +60,7 @@ public class CanvasPane extends Pane
 
         drawGrid(gc);
         drawNodes(gc);
+        drawWires(gc);
     }
 
     public void drawGrid(GraphicsContext gc)
@@ -71,12 +72,12 @@ public class CanvasPane extends Pane
             gc.strokeLine(x, 0, x, canvas.getHeight());
 
         for(double y = 0; y < canvas.getHeight(); y += GRID_SIZE)
-            gc.strokeLine(0, y, canvas.getWidth(), 0);
+            gc.strokeLine(0, y, canvas.getWidth(), y);
     }
 
     public void drawWires(GraphicsContext gc)
     {
-        gc.setLineWidth(2);
+        gc.setLineWidth(2.5);
 
         for(Wire wire : wires)
         {
@@ -87,16 +88,30 @@ public class CanvasPane extends Pane
             {
                 // Highlight active signals green, inactive signals dark
                 boolean active = wire.getSourcePin().getState();
-                gc.setStroke(active ? Color.web("#2ECC71") : Color.web("#7F8C8D"));
+                gc.setStroke(active ? Color.web("#2ECC71") : Color.web("#93726f"));
 
+                // Calculate source pin Y index
+                int outIndex = sourceNode.getOutputPins().indexOf(wire.getSourcePin());
                 double startX = sourceNode.getX() + 80;
-                double startY = sourceNode.getY() + 80;
+                double startY = sourceNode.getY() + getPinYOffset(sourceNode.getOutputPins().size(), outIndex);
+
+                // Calculate target pin Y index
+                int inIndex = targetNode.getInputPins().indexOf(wire.getTargetPin());
                 double endX = targetNode.getX();
-                double endY = targetNode.getY() + 25;
+                double endY = targetNode.getY() + getPinYOffset(targetNode.getInputPins().size(), inIndex);
 
                 gc.strokeLine(startX, startY, endX, endY);
             }
         }
+    }
+
+    private double getPinYOffset(int totalPins, int index)
+    {
+        if(totalPins <= 1)
+            return 25.0; // Centered for a single pin
+
+        double spacing = 50.0 / (totalPins + 1);
+        return spacing * (index + 1);
     }
 
     public void drawNodes(GraphicsContext gc)
@@ -124,9 +139,13 @@ public class CanvasPane extends Pane
 
     private LogicNode findOwnerNode(Pin pin)
     {
+        if (pin == null) 
+            return null;
+    
         return nodes.stream()
-                .filter(n -> n.getInputPins().contains(pin) || n.getOutputPins().contains(pin))
-                .findFirst()
-                .orElse(null);
+            .filter(n -> n.getInputPins().stream().anyMatch(p -> p.getId().equals(pin.getId())) ||
+                         n.getOutputPins().stream().anyMatch(p -> p.getId().equals(pin.getId())))
+            .findFirst()
+            .orElse(null);
     }
 }
