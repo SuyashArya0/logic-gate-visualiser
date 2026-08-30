@@ -88,15 +88,15 @@ public class CanvasPane extends Pane
             {
                 // Highlight active signals green, inactive signals dark
                 boolean active = wire.getSourcePin().getState();
-                gc.setStroke(active ? Color.web("#2ECC71") : Color.web("#93726f"));
+                gc.setStroke(active ? Color.web("#2ECC71") : Color.web("#E74C3C"));
 
                 // Calculate source pin Y index
-                int outIndex = sourceNode.getOutputPins().indexOf(wire.getSourcePin());
+                int outIndex = Math.max(0, sourceNode.getOutputPins().indexOf(wire.getSourcePin()));
                 double startX = sourceNode.getX() + 80;
                 double startY = sourceNode.getY() + getPinYOffset(sourceNode.getOutputPins().size(), outIndex);
 
                 // Calculate target pin Y index
-                int inIndex = targetNode.getInputPins().indexOf(wire.getTargetPin());
+                int inIndex = Math.max(0, targetNode.getInputPins().indexOf(wire.getTargetPin()));
                 double endX = targetNode.getX();
                 double endY = targetNode.getY() + getPinYOffset(targetNode.getInputPins().size(), inIndex);
 
@@ -134,6 +134,24 @@ public class CanvasPane extends Pane
             // Draw Label
             gc.setFill(Color.WHITE);
             gc.fillText(node.getType().name(), x + 20, y + 30);
+
+            // Draw Input Pins(Left side)
+            List<Pin> inPins = node.getInputPins();
+            for(int i = 0; i < inPins.size(); i++)
+            {
+                double pinY = y + getPinYOffset(inPins.size(), i);
+                gc.setFill(Color.web("#E74C3C")); // Red dot for input
+                gc.fillOval(x - 5, pinY - 5, 10, 10);
+            }
+
+            // Draw Input Pins(Right side)
+            List<Pin> outPins = node.getOutputPins();
+            for(int i = 0; i < outPins.size(); i++)
+            {
+                double pinY = y + getPinYOffset(outPins.size(), i);
+                gc.setFill(Color.web("#2ECC71")); // Green dot for output
+                gc.fillOval(x + width - 5, pinY - 5, 10, 10);
+            }
         }
     }
 
