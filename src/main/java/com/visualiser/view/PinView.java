@@ -2,7 +2,7 @@ package com.visualiser.view;
 
 import com.visualiser.model.Pin;
 
-import javafx.beans.property.DoubleProperty;
+import javafx.beans.binding.DoubleBinding;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 
@@ -36,12 +36,12 @@ public class PinView extends Circle
 
     public GateNodeView getParentNodeView() { return parentNodeView; }
 
-    public DoubleProperty canvasXProperty()
+    public DoubleBinding canvasXProperty()
     {
         return parentNodeView.layoutXProperty().add(layoutXProperty());
     }
 
-    public DoubleProperty canvasYProperty()
+    public DoubleBinding canvasYProperty()
     {
         return parentNodeView.layoutYProperty().add(layoutYProperty());
     }
