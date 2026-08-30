@@ -35,7 +35,7 @@ public class WireView extends CubicCurve
 
         // Dynamic horizontal offset based on node distance
         DoubleBinding controlOffset = Bindings.createDoubleBinding(() -> {
-            double deltaX = Math.abs(endYProperty().get() - startXProperty().get());
+            double deltaX = Math.abs(endXProperty().get() - startXProperty().get());
             return Math.max(deltaX * 0.5, 30.0);
         }, startXProperty(), endXProperty());
 
@@ -49,9 +49,15 @@ public class WireView extends CubicCurve
     public void updateVisualState()
     {
         if(wire.getSourcePin().getState())
+        {
             setStroke(Color.web("#2ECC71")); // HIGH signal
+            setStrokeWidth(3.0);
+        }
         else
+        {
             setStroke(Color.web("#34495E")); // LOW signal
+            setStrokeWidth(3.0);
+        }
     }
 
     public Wire getWire() { return wire; }
