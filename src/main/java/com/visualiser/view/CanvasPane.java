@@ -1,169 +1,251 @@
 package com.visualiser.view;
 
+import com.visualiser.engine.CircuitEvaluator;
+import com.visualiser.model.GateType;
 import com.visualiser.model.LogicNode;
-import com.visualiser.model.Wire;
 import com.visualiser.model.Pin;
+import com.visualiser.model.Wire;
 
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.CubicCurve;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
-public class CanvasPane extends Pane
+public class CanvasPane extends Pane 
 {
     private final Canvas canvas;
-    private final List<LogicNode> nodes = new ArrayList<>();
-    private final List<Wire> wires = new ArrayList<>();
+    private final List<GateNodeView> nodeViews = new ArrayList<>();
+    private final List<WireView> wireViews = new ArrayList<>();
+    private final CircuitEvaluator evaluator = new CircuitEvaluator();
+
+    private PinView pendingSourcePinView = null;
+    private CubicCurve dragWirePreview = null;
 
     public static final double GRID_SIZE = 20.0;
 
-    public CanvasPane()
+    public CanvasPane() 
     {
         canvas = new Canvas();
         getChildren().add(canvas);
 
-        // Auto resize canvas when parent window dimensions change
+        // Auto-resize background grid canvas when parent window dimensions change
         widthProperty().addListener((obs, oldVal, newVal) -> {
             canvas.setWidth(newVal.doubleValue());
-            redraw();
+            drawGrid();
         });
 
         heightProperty().addListener((obs, oldVal, newVal) -> {
             canvas.setHeight(newVal.doubleValue());
-            redraw();
+            drawGrid();
         });
+
+        setOnMouseMoved(this::handlePreviewWireDrag);
     }
 
-    public void addNode(LogicNode node)
+    /*Adds a logic node model, creates its corresponding GateNodeView,
+    and sets up user interactions for toggling and wiring.
+    */
+    public void addNode(LogicNode node) 
     {
-        nodes.add(node);
-        redraw();
-    }
+        GateNodeView nodeView = new GateNodeView(node);
+        nodeViews.add(nodeView);
+        getChildren().add(nodeView);
 
-    public void addWire(Wire wire)
-    {
-        wires.add(wire);
-        redraw();
-    }
-
-    public List<LogicNode> getNodes() { return nodes; }
-
-    public List<Wire> getWires() { return wires; }
-
-    public void redraw()
-    {
-        GraphicsContext gc = canvas.getGraphicsContext2D();
-        gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
-
-        drawGrid(gc);
-        drawNodes(gc);
-        drawWires(gc);
-    }
-
-    public void drawGrid(GraphicsContext gc)
-    {
-        gc.setStroke(Color.web("#2C3E50"));
-        gc.setLineWidth(0.5);
-
-        for(double x = 0; x < canvas.getWidth(); x += GRID_SIZE)
-            gc.strokeLine(x, 0, x, canvas.getHeight());
-
-        for(double y = 0; y < canvas.getHeight(); y += GRID_SIZE)
-            gc.strokeLine(0, y, canvas.getWidth(), y);
-    }
-
-    public void drawWires(GraphicsContext gc)
-    {
-        gc.setLineWidth(2.5);
-
-        for(Wire wire : wires)
+        // Toggle switch state on click for INPUT nodes
+        if (node.getType() == GateType.INPUT) 
         {
-            LogicNode sourceNode = findOwnerNode(wire.getSourcePin());
-            LogicNode targetNode = findOwnerNode(wire.getTargetPin());
+            nodeView.setOnMouseClicked(e -> {
+                if (e.isStillSincePress()) 
+                {
+                    boolean currentState = node.getOutputPins().get(0).getState();
+                    node.getOutputPins().get(0).setState(!currentState);
+                    evaluateCircuit();
+                }
+            });
+        }
 
-            if(sourceNode != null && targetNode != null)
-            {
-                // Highlight active signals green, inactive signals dark
-                boolean active = wire.getSourcePin().getState();
-                gc.setStroke(active ? Color.web("#2ECC71") : Color.web("#E74C3C"));
+        // Attach interactive wiring handlers to all node pins
+        for (PinView pinView : nodeView.getOutputPinViews())
+            pinView.setOnMouseClicked(e -> {
+                e.consume();
+                handlePinClick(pinView);
+            });
 
-                // Calculate source pin Y index
-                int outIndex = Math.max(0, sourceNode.getOutputPins().indexOf(wire.getSourcePin()));
-                double startX = sourceNode.getX() + 80;
-                double startY = sourceNode.getY() + getPinYOffset(sourceNode.getOutputPins().size(), outIndex);
+        for (PinView pinView : nodeView.getInputPinViews())
+            pinView.setOnMouseClicked(e -> {
+                e.consume();
+                handlePinClick(pinView);
+            });
+    }
 
-                // Calculate target pin Y index
-                int inIndex = Math.max(0, targetNode.getInputPins().indexOf(wire.getTargetPin()));
-                double endX = targetNode.getX();
-                double endY = targetNode.getY() + getPinYOffset(targetNode.getInputPins().size(), inIndex);
+    /*Programmatically adds a wire to the canvas by looking up the corresponding
+    PinViews for the wire's source and target pins.
+    */
+    public void addWire(Wire wire) 
+    {
+        PinView sourcePinView = findPinView(wire.getSourcePin());
+        PinView targetPinView = findPinView(wire.getTargetPin());
 
-                gc.strokeLine(startX, startY, endX, endY);
-            }
+        if (sourcePinView != null && targetPinView != null) 
+        {
+            WireView wireView = new WireView(wire, sourcePinView, targetPinView);
+            wireViews.add(wireView);
+            getChildren().add(wireView);
+
+            // Maintain proper layer ordering (wires behind nodes, above background)
+            wireView.toBack();
+            canvas.toBack();
+
+            evaluateCircuit();
         }
     }
 
-    private double getPinYOffset(int totalPins, int index)
+    // Retrieves the underlying LogicNode models present on the canvas.
+    public List<LogicNode> getNodes() 
     {
-        if(totalPins <= 1)
-            return 25.0; // Centered for a single pin
-
-        double spacing = 50.0 / (totalPins + 1);
-        return spacing * (index + 1);
+        return nodeViews.stream()
+                .map(GateNodeView::getNode)
+                .toList();
     }
 
-    public void drawNodes(GraphicsContext gc)
+    // Retrieves a specific LogicNode model by its unique ID.s
+    public Optional<LogicNode> getNode(String id) 
     {
-        for(LogicNode node : nodes)
+        return nodeViews.stream()
+                .map(GateNodeView::getNode)
+                .filter(node -> node.getId().equals(id))
+                .findFirst();
+    }
+
+    // Retrieves the underlying Wire models present on the canvas.
+    public List<Wire> getWires() 
+    {
+        return wireViews.stream()
+                .map(WireView::getWire)
+                .toList();
+    }
+
+    public List<GateNodeView> getNodeViews() { return nodeViews; }
+    public List<WireView> getWireViews() { return wireViews; }
+
+    private void handlePinClick(PinView clickedPinView) 
+    {
+        if (pendingSourcePinView == null) 
         {
-            double x = node.getX();
-            double y = node.getY();
-
-            double width = 80;
-            double height = 50;
-
-            // Draw Node Box
-            gc.setFill(Color.web("#34495E"));
-            gc.setStroke(Color.web("#ECF0F1"));
-            gc.setLineWidth(2);
-            gc.fillRoundRect(x, y, width, height, 10, 10);
-            gc.strokeRoundRect(x, y, width, height, 10, 10);
-            
-            // Draw Label
-            gc.setFill(Color.WHITE);
-            gc.fillText(node.getType().name(), x + 20, y + 30);
-
-            // Draw Input Pins(Left side)
-            List<Pin> inPins = node.getInputPins();
-            for(int i = 0; i < inPins.size(); i++)
+            // Start wire creation only when clicking an OUTPUT pin
+            if (clickedPinView.getPin().getType() == Pin.Type.OUTPUT) 
             {
-                double pinY = y + getPinYOffset(inPins.size(), i);
-                gc.setFill(Color.web("#E74C3C")); // Red dot for input
-                gc.fillOval(x - 5, pinY - 5, 10, 10);
+                pendingSourcePinView = clickedPinView;
+                initWirePreview(clickedPinView);
+            }
+        } 
+        else 
+        {
+            // Complete connection if clicking an INPUT pin on a different node
+            if (clickedPinView.getPin().getType() == Pin.Type.INPUT &&
+                clickedPinView.getParentNodeView() != pendingSourcePinView.getParentNodeView()) 
+            {
+                Wire wire = new Wire(pendingSourcePinView.getPin(), clickedPinView.getPin());
+                addWire(wire);
             }
 
-            // Draw Input Pins(Right side)
-            List<Pin> outPins = node.getOutputPins();
-            for(int i = 0; i < outPins.size(); i++)
-            {
-                double pinY = y + getPinYOffset(outPins.size(), i);
-                gc.setFill(Color.web("#2ECC71")); // Green dot for output
-                gc.fillOval(x + width - 5, pinY - 5, 10, 10);
-            }
+            cancelWirePreview();
         }
     }
 
-    private LogicNode findOwnerNode(Pin pin)
+    private void initWirePreview(PinView sourcePinView) 
+    {
+        dragWirePreview = new CubicCurve();
+        dragWirePreview.setStroke(Color.web("#E67E22"));
+        dragWirePreview.setStrokeWidth(2.5);
+        dragWirePreview.getStrokeDashArray().addAll(6.0, 6.0);
+        dragWirePreview.setFill(null);
+
+        dragWirePreview.setMouseTransparent(true);
+
+        dragWirePreview.setStartX(sourcePinView.canvasXProperty().get());
+        dragWirePreview.setStartY(sourcePinView.canvasYProperty().get());
+        dragWirePreview.setEndX(sourcePinView.canvasXProperty().get());
+        dragWirePreview.setEndY(sourcePinView.canvasYProperty().get());
+
+        getChildren().add(dragWirePreview);
+    }
+
+    private void handlePreviewWireDrag(MouseEvent event) 
+    {
+        if (dragWirePreview != null && pendingSourcePinView != null) 
+        {
+            dragWirePreview.setStartX(pendingSourcePinView.canvasXProperty().get());
+            dragWirePreview.setStartY(pendingSourcePinView.canvasYProperty().get());
+            dragWirePreview.setEndX(event.getX());
+            dragWirePreview.setEndY(event.getY());
+
+            dragWirePreview.setControlX1(dragWirePreview.getStartX() + 40);
+            dragWirePreview.setControlY1(dragWirePreview.getStartY());
+            dragWirePreview.setControlX2(event.getX() - 40);
+            dragWirePreview.setControlY2(event.getY());
+        }
+    }
+
+    private void cancelWirePreview() 
+    {
+        if (dragWirePreview != null) 
+        {
+            getChildren().remove(dragWirePreview);
+            dragWirePreview = null;
+        }
+
+        pendingSourcePinView = null;
+    }
+
+    private PinView findPinView(Pin pin) 
     {
         if (pin == null) 
             return null;
-    
-        return nodes.stream()
-            .filter(n -> n.getInputPins().stream().anyMatch(p -> p.getId().equals(pin.getId())) ||
-                         n.getOutputPins().stream().anyMatch(p -> p.getId().equals(pin.getId())))
-            .findFirst()
-            .orElse(null);
+
+        for (GateNodeView nodeView : nodeViews) 
+        {
+            for (PinView pinView : nodeView.getOutputPinViews())
+                if (pinView.getPin().getId().equals(pin.getId())) 
+                    return pinView;
+
+            for (PinView pinView : nodeView.getInputPinViews())
+                if (pinView.getPin().getId().equals(pin.getId())) 
+                    return pinView;
+        }
+
+        return null;
+    }
+
+    public void evaluateCircuit() 
+    {
+        List<LogicNode> nodes = getNodes();
+        List<Wire> wires = getWires();
+
+        evaluator.evaluate(nodes, wires);
+
+        nodeViews.forEach(GateNodeView::updateVisuals);
+        wireViews.forEach(WireView::updateVisualState);
+    }
+
+    private void drawGrid() 
+    {
+        GraphicsContext gc = canvas.getGraphicsContext2D();
+        gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
+        
+        gc.setStroke(Color.web("#2C3E50"));
+        gc.setLineWidth(0.5);
+
+        for (double x = 0; x < canvas.getWidth(); x += GRID_SIZE)
+            gc.strokeLine(x, 0, x, canvas.getHeight());
+
+        for (double y = 0; y < canvas.getHeight(); y += GRID_SIZE)
+            gc.strokeLine(0, y, canvas.getWidth(), y);
     }
 }
