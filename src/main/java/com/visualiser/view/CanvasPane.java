@@ -1,7 +1,6 @@
 package com.visualiser.view;
 
 import com.visualiser.engine.CircuitEvaluator;
-import com.visualiser.model.GateType;
 import com.visualiser.model.LogicNode;
 import com.visualiser.model.Pin;
 import com.visualiser.model.Wire;
