@@ -42,6 +42,10 @@ public class LogicNode
 
     public void evaluate()
     {
+        // Skip re evaluation for INPUT nodes so manual toggles are preserved
+        if(type == GateType.INPUT)
+            return;
+
         List<Boolean> inputStates = inputPins.stream().map(Pin :: getState).toList();
         boolean result = type.evaluate(inputStates);
 

@@ -26,7 +26,13 @@ public class GateNodeView extends Pane
     private double dragOffsetX;
     private double dragOffsetY;
 
+    private double pressX;
+    private double pressY;
+
     private final Rectangle body;
+
+    private boolean isDragging = false;
+    private Runnable onToggleCallback; // Triggered wehn input mode is clicked
 
     public GateNodeView(LogicNode node)
     {
@@ -36,6 +42,9 @@ public class GateNodeView extends Pane
         setLayoutY(node.getY());
         setPrefSize(100, 60);
 
+        // Ensure entire 100x60 pane region catches mouse events
+        setPickOnBounds(true);
+
         // Main Node Body Shape
         body = new Rectangle(100, 60);
         body.setArcWidth(12);
@@ -43,6 +52,7 @@ public class GateNodeView extends Pane
         body.setFill(Color.web("#2C3E50"));
         body.setStroke(Color.web("#BDC3C7"));
         body.setStrokeWidth(2);
+        body.setMouseTransparent(true); // Directs clicks to the GateNodeView Pane
 
         // Label setup
         titleLabel = new Label();
@@ -52,12 +62,18 @@ public class GateNodeView extends Pane
         VBox centerBox = new VBox(titleLabel);
         centerBox.setPrefSize(100, 60);
         centerBox.setAlignment(Pos.CENTER);
+        centerBox.setMouseTransparent(true); // Ensures click hits GateNodeView
 
         getChildren().addAll(body, centerBox);
 
         renderPins();
         initDragAndDrop();
         updateVisuals();
+    }
+
+    public void setOnToggleCallback(Runnable callback)
+    {
+        this.onToggleCallback = callback;
     }
 
     private void renderPins()
@@ -89,22 +105,54 @@ public class GateNodeView extends Pane
     private void initDragAndDrop()
     {
         setOnMousePressed(e -> {
+            pressX = e.getSceneX();
+            pressY = e.getSceneY();
+
             dragOffsetX = e.getSceneX() - getLayoutX();
             dragOffsetY = e.getSceneY() - getLayoutY();
+            isDragging = false; // Reset drag tracker on press
             toFront(); // Bring selected node to foreground
         });
 
         setOnMouseDragged(e -> {
-            double newX = Math.max(0, e.getSceneX() - dragOffsetX);
-            double newY = Math.max(0, e.getSceneY() - dragOffsetY);
+            double deltaX = Math.abs(e.getSceneX() - pressX);
+            double deltaY = Math.abs(e.getSceneY() - pressY);
 
-            // Snap to 20px grid
-            newX = Math.round(newX / 20.0) * 20.0;
-            newY = Math.round(newY / 20.0) * 20.0;
+            // Only mark as drag if mouse is moved more than 3 pixels
+            if(deltaX > 3 || deltaY > 3)
+                isDragging = true;
 
-            setLayoutX(newX);
-            setLayoutY(newY);
-            node.setPosition(newX, newY);
+            if(isDragging)
+            {
+                double newX = Math.max(0, e.getSceneX() - dragOffsetX);
+                double newY = Math.max(0, e.getSceneY() - dragOffsetY);
+
+                // Snap to 20px grid
+                newX = Math.round(newX / 20.0) * 20.0;
+                newY = Math.round(newY / 20.0) * 20.0;
+
+                setLayoutX(newX);
+                setLayoutY(newY);
+                node.setPosition(newX, newY);
+            }
+        });
+
+        setOnMouseReleased(e -> {
+            // If mouse was released without significant movement and node is an INPUT
+            if(!isDragging && node.getType() == GateType.INPUT)
+                if(!node.getOutputPins().isEmpty())
+                {
+                    Pin outPin = node.getOutputPins().get(0);
+                    outPin.setState(!outPin.getState()); // Toggle state 0 <-> 1
+
+                    // Notify canvas to re evaluate and update all node/wire visuals
+                    if(onToggleCallback != null)
+                        onToggleCallback.run();
+                    else
+                        updateVisuals();
+
+                    e.consume();
+                }
         });
     }
 
@@ -119,12 +167,12 @@ public class GateNodeView extends Pane
         boolean isActive = false;
 
         // Retrieve current state for INPUT or OUTPUT nodes
-        if (node.getType() == GateType.INPUT) 
+        if (node.getType() == GateType.INPUT && !node.getOutputPins().isEmpty()) 
         {
             isActive = node.getOutputPins().get(0).getState();
             titleLabel.setText("INPUT: " + (isActive ? "HIGH (1)" : "LOW (0)"));
         } 
-        else if (node.getType() == GateType.OUTPUT) 
+        else if (node.getType() == GateType.OUTPUT && !node.getInputPins().isEmpty()) 
         {
             isActive = node.getInputPins().get(0).getState();
             titleLabel.setText("OUTPUT: " + (isActive ? "HIGH (1)" : "LOW (0)"));

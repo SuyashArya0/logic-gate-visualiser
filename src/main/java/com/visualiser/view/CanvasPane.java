@@ -55,20 +55,11 @@ public class CanvasPane extends Pane
     {
         GateNodeView nodeView = new GateNodeView(node);
         nodeViews.add(nodeView);
-        getChildren().add(nodeView);
 
-        // Toggle switch state on click for INPUT nodes
-        if (node.getType() == GateType.INPUT) 
-        {
-            nodeView.setOnMouseClicked(e -> {
-                if (e.isStillSincePress()) 
-                {
-                    boolean currentState = node.getOutputPins().get(0).getState();
-                    node.getOutputPins().get(0).setState(!currentState);
-                    evaluateCircuit();
-                }
-            });
-        }
+        // Re evaluate circuit & refresh visualas across all gates/wires whenever an INPUT toggles
+        nodeView.setOnToggleCallback(this :: evaluateCircuit);
+
+        getChildren().add(nodeView);
 
         // Attach interactive wiring handlers to all node pins
         for (PinView pinView : nodeView.getOutputPinViews())
