@@ -31,8 +31,11 @@ public class CanvasPane extends Pane
 
     public static final double GRID_SIZE = 20.0;
 
+    // REQUIRED for JavaFX FXML instantiation
     public CanvasPane() 
     {
+        super();
+        
         canvas = new Canvas();
         getChildren().add(canvas);
 

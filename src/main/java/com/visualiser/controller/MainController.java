@@ -7,29 +7,52 @@ import com.visualiser.util.StorageManager;
 import com.visualiser.view.CanvasPane;
 
 import javafx.fxml.FXML;
+import javafx.fxml.Initializable;
 import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
 import java.io.File;
+import java.net.URL;
+import java.util.ResourceBundle;
 
-public class MainController
+public class MainController implements Initializable
 {
     @FXML private VBox paletteVBox;
     @FXML private CanvasPane canvas;
 
     private final StorageManager storageManager = new StorageManager();
 
-    @FXML
-    public void initialise()
+    @Override
+    public void initialize(URL location, ResourceBundle resources)
     {
-        // Dynamically populate palette buttons from GateType
-        for(GateType type : GateType.values())
+        populatePalette();
+    }
+
+    private void populatePalette()
+    {
+        if(paletteVBox == null)
         {
-            javafx.scene.control.Button btn = new javafx.scene.control.Button("+ " + type.name());
+            System.err.println("Error: paletteVBox was not injected by FXML.");
+            return;
+        }
+
+        paletteVBox.getChildren().clear();
+
+        for(GateType type: GateType.values())
+        {
+            Button btn = new Button("+ " + type.name());
             btn.getStyleClass().add("palette-btn");
-            btn.setOnAction(e -> canvas.addNode(new LogicNode(type, 200, 200)));
+            btn.setMaxWidth(Double.MAX_VALUE);
+            
+            btn.setOnAction(e -> {
+                if (canvas != null) {
+                    canvas.addNode(new LogicNode(type, 200, 200));
+                }
+            });
+
             paletteVBox.getChildren().add(btn);
         }
     }
@@ -37,6 +60,9 @@ public class MainController
     @FXML
     private void handleSave()
     {
+        if(canvas == null)
+            return;
+
         FileChooser chooser = new FileChooser();
         chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("JSON Files", "*.json"));
 
@@ -59,6 +85,9 @@ public class MainController
     @FXML
     private void handleLoad()
     {
+        if(canvas == null)
+            return;
+        
         FileChooser chooser = new FileChooser();
         chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("JSON Files", "*.json"));
 
@@ -81,13 +110,17 @@ public class MainController
     @FXML
     private void handleClear()
     {
-        canvas.clear();
+        if(canvas != null)
+            canvas.clear();
     }
 
     @FXML
     private void handleLoadHalfAdder()
     {
-        CircuitFactory.loadHalfAdder(canvas);
+        if(canvas != null)
+            CircuitFactory.loadHalfAdder(canvas);
+        else
+            System.err.println("Error: Canvas is null, cannot load Half Adder.");
     }
 
     private void showError(String title, String message)

@@ -7,11 +7,11 @@
 <?import javafx.scene.control.ToolBar?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.VBox?>
-<?import com.visualizer.view.CanvasPane?>
+<?import com.visualiser.view.CanvasPane?>
 
 <BorderPane xmlns="http://javafx.com/javafx/17" 
             xmlns:fx="http://javafx.com/fxml/1" 
-            fx:controller="com.visualizer.controller.MainController"
+            fx:controller="com.visualiser.controller.MainController"
             stylesheets="@../styles/theme.css"
             prefWidth="1100.0" prefHeight="800.0" styleClass="root-pane">
     
@@ -40,7 +40,7 @@
     </left>
 
     <center>
-        <CanvasPane fx:id="canvasPane"/>
+        <CanvasPane fx:id="canvas"/>
     </center>
 
 </BorderPane>

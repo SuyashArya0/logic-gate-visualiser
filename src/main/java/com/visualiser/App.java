@@ -6,8 +6,6 @@ import javafx.stage.Stage;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 
-import java.io.File;
-
 public class App extends Application
 {
     @Override
