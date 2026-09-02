@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.ToolBar?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.VBox?>
+<?import com.visualizer.view.CanvasPane?>
+
+<BorderPane xmlns="http://javafx.com/javafx/17" 
+            xmlns:fx="http://javafx.com/fxml/1" 
+            fx:controller="com.visualizer.controller.MainController"
+            stylesheets="@../styles/theme.css"
+            prefWidth="1100.0" prefHeight="800.0" styleClass="root-pane">
+    
+    <top>
+        <ToolBar styleClass="top-toolbar">
+            <items>
+                <Button fx:id="saveBtn" text="Save JSON" onAction="#handleSave" styleClass="action-btn"/>
+                <Button fx:id="loadBtn" text="Load JSON" onAction="#handleLoad" styleClass="action-btn"/>
+                <Separator/>
+                <Button fx:id="clearBtn" text="Clear Workspace" onAction="#handleClear" styleClass="action-btn, danger-btn"/>
+                <Separator/>
+                <Button fx:id="presetBtn" text="Load Half-Adder" onAction="#handleLoadHalfAdder" styleClass="action-btn, preset-btn"/>
+            </items>
+        </ToolBar>
+    </top>
+
+    <left>
+        <VBox fx:id="paletteVBox" spacing="10.0" prefWidth="140.0" styleClass="sidebar">
+            <padding>
+                <Insets top="10" right="10" bottom="10" left="10"/>
+            </padding>
+            <children>
+                <Label text="PALETTE" styleClass="palette-header"/>
+            </children>
+        </VBox>
+    </left>
+
+    <center>
+        <CanvasPane fx:id="canvasPane"/>
+    </center>
+
+</BorderPane>

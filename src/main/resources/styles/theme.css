@@ -1,0 +1,59 @@
+.root-pane {
+    -fx-background-color: #1E1E1E;
+}
+
+.top-toolbar {
+    -fx-background-color: #2C3E50;
+    -fx-padding: 8px;
+}
+
+.sidebar {
+    -fx-background-color: #1A252F;
+    -fx-alignment: top-center;
+}
+
+.palette-header {
+    -fx-text-fill: #BDC3C7;
+    -fx-font-weight: bold;
+    -fx-font-size: 12px;
+}
+
+.action-btn {
+    -fx-background-color: #34495E;
+    -fx-text-fill: #ECF0F1;
+    -fx-font-weight: bold;
+    -fx-background-radius: 4px;
+    -fx-cursor: hand;
+}
+
+.action-btn:hover {
+    -fx-background-color: #4A6572;
+}
+
+.danger-btn {
+    -fx-background-color: #C0392B;
+}
+
+.danger-btn:hover {
+    -fx-background-color: #E74C3C;
+}
+
+.preset-btn {
+    -fx-background-color: #27AE60;
+}
+
+.preset-btn:hover {
+    -fx-background-color: #2ECC71;
+}
+
+.palette-btn {
+    -fx-background-color: #34495E;
+    -fx-text-fill: white;
+    -fx-cursor: hand;
+    -fx-max-width: infinity;
+    -fx-alignment: center-left;
+}
+
+.palette-btn:hover {
+    -fx-background-color: #2980B9;
+}
