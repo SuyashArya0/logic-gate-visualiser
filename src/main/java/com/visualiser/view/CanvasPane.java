@@ -1,5 +1,6 @@
 package com.visualiser.view;
 
+import com.visualiser.dto.CircuitData;
 import com.visualiser.engine.CircuitEvaluator;
 import com.visualiser.model.LogicNode;
 import com.visualiser.model.Pin;
@@ -13,6 +14,8 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.CubicCurve;
 
 import java.util.ArrayList;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 
@@ -237,5 +240,100 @@ public class CanvasPane extends Pane
 
         for (double y = 0; y < canvas.getHeight(); y += GRID_SIZE)
             gc.strokeLine(0, y, canvas.getWidth(), y);
+    }
+
+    public void clear()
+    {
+        nodeViews.clear();
+        wireViews.clear();
+        getChildren().removeIf(node -> node != canvas);
+        drawGrid();
+    }
+
+    private GateNodeView findNodeView(LogicNode node)
+    {
+        return nodeViews.stream()
+            .filter(v -> v.getNode().getId().equals(node.getId()))
+            .findFirst()
+            .orElse(null);
+    }
+
+    public CircuitData exportData()
+    {
+        CircuitData data = new CircuitData();
+
+        for(GateNodeView view : nodeViews)
+        {
+            LogicNode node = view.getNode();
+            data.nodes.add(new CircuitData.NodeDTO(node.getId(), node.getType(), node.getX(), node.getY()));
+        }
+
+        for(WireView wireView : wireViews)
+        {
+            Wire wire = wireView.getWire();
+            GateNodeView sourceView = nodeViews.stream()
+                    .filter(v -> v.getNode().getOutputPins().contains(wire.getSourcePin()))
+                    .findFirst()
+                    .orElse(null);
+
+            GateNodeView targetView = nodeViews.stream()
+                    .filter(v -> v.getNode().getInputPins().contains(wire.getTargetPin()))
+                    .findFirst()
+                    .orElse(null);
+
+            if(sourceView != null && targetView != null)
+            {
+                int sourceIdx = sourceView.getNode().getOutputPins().indexOf(wire.getSourcePin());
+                int targetIdx = targetView.getNode().getInputPins().indexOf(wire.getTargetPin());
+
+                data.wires.add(new CircuitData.WireDTO(sourceView.getNode().getId(), sourceIdx, targetView.getNode().getId(), targetIdx));
+            }
+        }
+
+        return data;
+    }
+
+    public void importData(CircuitData data)
+    {
+        clear();
+        Map<String, LogicNode> nodeMap = new HashMap<>();
+
+        for(CircuitData.NodeDTO nodeDto : data.nodes)
+        {
+            LogicNode node = new LogicNode(nodeDto.type, nodeDto.x, nodeDto.y);
+            nodeMap.put(nodeDto.id, node);
+            addNode(node);
+        }
+
+        for(CircuitData.WireDTO wireDto : data.wires)
+        {
+            LogicNode sourceNode = nodeMap.get(wireDto.sourceNodeId);
+            LogicNode targetNode = nodeMap.get(wireDto.targetNodeId);
+
+            if(sourceNode != null && targetNode != null)
+                connectPins(sourceNode, wireDto.sourcePinIndex, targetNode, wireDto.targetPinIndex);
+        }
+
+        evaluateCircuit();
+    }
+
+    public void connectPins(LogicNode sourceNode, int sourcePinIndex, LogicNode targetNode, int targetPinIndex)
+    {
+        GateNodeView sourceView = findNodeView(sourceNode);
+        GateNodeView targetView = findNodeView(targetNode);
+
+        if(sourceView != null && targetView != null)
+        {
+            PinView sourcePinView = sourceView.getOutputPinViews().get(sourcePinIndex);
+            PinView targetPinView = targetView.getInputPinViews().get(targetPinIndex);
+
+            Wire wire = new Wire(sourcePinView.getPin(), targetPinView.getPin());
+            WireView wireView = new WireView(wire, sourcePinView, targetPinView);
+
+            wireViews.add(wireView);
+            getChildren().add(wireView);
+            wireView.toBack();
+            canvas.toBack();
+        }
     }
 }
