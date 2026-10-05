@@ -61,7 +61,7 @@ The project keeps the domain model free of any JavaFX code, so the simulation lo
 ## Getting Started
 
 ```bash
-git clone https://github.com/your-username/circuit-visualiser.git
+git clone https://github.com/SuyashArya0/circuit-visualiser.git
 cd circuit-visualiser
 
 # Build
